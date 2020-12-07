@@ -1,0 +1,54 @@
+name: Build and Test Pull Request
+
+# Trigger the workflow on push or pull request
+on: [push, pull_request]
+
+env:
+  GOPROXY: https://proxy.golang.org/
+jobs:
+  test-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
+        with:
+          go-version: '1.15.2'
+      - name: test
+        run: |
+          go test -mod=readonly -covermode=atomic -coverprofile=coverage.out ./...
+      - name: codeCoverage
+        if: ${{ success() }}
+        run: |
+          CODECOV_NAME=coverage.out bash <(curl -s https://codecov.io/bash)
+  test-osx:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
+        with:
+          go-version: '1.15.2'
+      - name: test
+        run: |
+          go test -mod=readonly -covermode=atomic -coverprofile=coverage.out ./...
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v2
+        with:
+          version: v1.31
+          only-new-issues: true
+  codespell:
+    name: Codespell
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v2
+      - name: Codespell
+        uses: codespell-project/actions-codespell@master
+        with:
+          skip: .git,*.png,*.woff,*.ttf,*.jpg,*.ico,./site/Gemfile.lock,./site/_config.yml
+          ignore_words_file: './.codespell.ignorewords'
+          check_filenames: true
+          check_hidden: true
