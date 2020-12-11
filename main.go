@@ -13,6 +13,15 @@
 
 package main
 
+import (
+	"github.com/projectcontour/lint/pkg/analysis/importalias"
+	"github.com/projectcontour/lint/pkg/analysis/messagefmt"
+	"golang.org/x/tools/go/analysis/unitchecker"
+)
+
 func main() {
-	// TODO: register linters with singlechecker.Main().
+	unitchecker.Main(
+		messagefmt.Analyzer,
+		importalias.Analyzer,
+	)
 }
