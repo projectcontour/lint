@@ -4,8 +4,8 @@ Go code linters for Project Contour.
 
 ## running
 ```bash
-go install .
-go vet -vettool (which lint) ./...
+$ go build -o contour-lint .
+$ go vet -vetttool $(which contour-lint) ./...
 ```
 
 ## linters
