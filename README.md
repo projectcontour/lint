@@ -10,7 +10,7 @@ $ go vet -vetttool $(which contour-lint) ./...
 
 ## linters
 
-### import alias
+### importalias
 
 consider import path: github.com/projectcontour/x/y/z/v\*
 
