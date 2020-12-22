@@ -86,7 +86,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			pass.Report(
 				analysis.Diagnostic{
 					Pos:     node.Pos(),
-					Message: fmt.Sprintf(error.Error()+" path: %s alias: %s", path, alias),
+					Message: fmt.Sprintf(error.Error()),
 					SuggestedFixes: []analysis.SuggestedFix{
 						{
 							Message: fmt.Sprintf("should replace %q with %q", alias, applicableAlias),
@@ -128,19 +128,18 @@ func checkAliasName(aliasSlice []string, pathSlice []string, pass *analysis.Pass
 		usedWordIndex := searchString(pathSlice, name)
 
 		if usedWordIndex == len(pathSlice) {
-			return fmt.Errorf("alias %q uses words that are not in path %q",
-				strings.Join(aliasSlice, "_"), strings.Join(pathSlice, "/"))
+			return fmt.Errorf("alias %q does not contain any words from import path %q", strings.Join(aliasSlice, "_"), strings.Join(pathSlice, "/"))
 		}
 
 		if usedWordIndex <= lastUsedWordIndex {
-			return errors.New("order of words in alias should match words in path")
+			return fmt.Errorf("alias %q does not match word order from import path %q", strings.Join(aliasSlice, "_"), strings.Join(pathSlice, "/"))
 		}
 
 		lastUsedWordIndex = usedWordIndex
 	}
 
 	if lastUsedWordIndex == -1 {
-		return errors.New("at least one word from path must be present in alias")
+		return fmt.Errorf("alias %q uses words that are not in path %q", strings.Join(aliasSlice, "_"), strings.Join(pathSlice, "/"))
 	}
 
 	return nil
