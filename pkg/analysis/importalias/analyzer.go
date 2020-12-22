@@ -14,6 +14,7 @@
 package importalias
 
 import (
+	"errors"
 	"fmt"
 	"go/ast"
 	"regexp"
@@ -80,12 +81,12 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			)
 			return
 		}
-		if ok, lintErrMsg := checkAliasName(aliasSlice, pathSlice, pass); !ok {
+		if error := checkAliasName(aliasSlice, pathSlice, pass); !error {
 			applicableAlias := getAliasFix(pathSlice)
 			pass.Report(
 				analysis.Diagnostic{
 					Pos:     node.Pos(),
-					Message: fmt.Sprintf(lintErrMsg+" path: %s alias: %s", path, alias),
+					Message: fmt.Sprintf(error.Error()+" path: %s alias: %s", path, alias),
 					SuggestedFixes: []analysis.SuggestedFix{
 						{
 							Message: fmt.Sprintf("should replace %q with %q", alias, applicableAlias),
@@ -117,7 +118,7 @@ func checkVersion(aliasLastWord string, pathSlice []string) bool {
 }
 
 // checkAliasName check consistency in alias name
-func checkAliasName(aliasSlice []string, pathSlice []string, pass *analysis.Pass) (bool, string) {
+func checkAliasName(aliasSlice []string, pathSlice []string, pass *analysis.Pass) error {
 	lastUsedWordIndex := -1
 	for _, name := range aliasSlice {
 		// we don't check version rule here
@@ -128,21 +129,21 @@ func checkAliasName(aliasSlice []string, pathSlice []string, pass *analysis.Pass
 
 		if usedWordIndex == len(pathSlice) {
 			return fmt.Errorf("alias %q uses words that are not in path %q",
-			        strings.Join(aliasSlice, "_"), strings.Join(pathSlice, "/")
+				strings.Join(aliasSlice, "_"), strings.Join(pathSlice, "/"))
 		}
 
 		if usedWordIndex <= lastUsedWordIndex {
-			return false, "order of words in alias should match words in path"
+			return errors.New("order of words in alias should match words in path")
 		}
 
 		lastUsedWordIndex = usedWordIndex
 	}
 
 	if lastUsedWordIndex == -1 {
-		return false, "at least one word from path must be present in alias"
+		return errors.New("at least one word from path must be present in alias")
 	}
 
-	return true, ""
+	return nil
 }
 
 func getAliasFix(pathSlice []string) string {
