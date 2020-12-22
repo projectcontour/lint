@@ -127,7 +127,8 @@ func checkAliasName(aliasSlice []string, pathSlice []string, pass *analysis.Pass
 		usedWordIndex := searchString(pathSlice, name)
 
 		if usedWordIndex == len(pathSlice) {
-			return false, "used words in alias most be present in path"
+			return fmt.Errorf("alias %q uses words that are not in path %q",
+			        strings.Join(aliasSlice, "_"), strings.Join(pathSlice, "/")
 		}
 
 		if usedWordIndex <= lastUsedWordIndex {
