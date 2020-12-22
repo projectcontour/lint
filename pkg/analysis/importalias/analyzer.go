@@ -64,7 +64,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			pass.Report(
 				analysis.Diagnostic{
 					Pos:     node.Pos(),
-					Message: fmt.Sprintf("version not specified in alias. path: %s alias: %s version %s", path, alias, packageName),
+					Message: fmt.Sprintf("version %q not specified in alias %q for import path %q", packageName, alias, path),
 					SuggestedFixes: []analysis.SuggestedFix{
 						{
 							Message: fmt.Sprintf("should replace %q with %q", alias, applicableAlias),
@@ -81,7 +81,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			)
 			return
 		}
-		if error := checkAliasName(aliasSlice, pathSlice, pass); !error {
+		if error := checkAliasName(aliasSlice, pathSlice, pass); error != nil {
 			applicableAlias := getAliasFix(pathSlice)
 			pass.Report(
 				analysis.Diagnostic{
