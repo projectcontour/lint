@@ -56,14 +56,14 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		path = strings.ReplaceAll(path, "-", "")
 		// omit the domain name in path
 		pathSlice := strings.Split(path, "/")[1:]
-		packageName := pathSlice[len(pathSlice)-1]
 
 		if !checkVersion(aliasSlice[len(aliasSlice)-1], pathSlice) {
 			applicableAlias := getAliasFix(pathSlice)
+			_, versionIndex := packageVersion(pathSlice)
 			pass.Report(
 				analysis.Diagnostic{
 					Pos:     node.Pos(),
-					Message: fmt.Sprintf("version %q not specified in alias %q for import path %q", packageName, alias, path),
+					Message: fmt.Sprintf("version %q not specified in alias %q for import path %q", pathSlice[versionIndex], alias, path),
 					SuggestedFixes: []analysis.SuggestedFix{
 						{
 							Message: fmt.Sprintf("should replace %q with %q", alias, applicableAlias),
@@ -161,7 +161,8 @@ func getAliasFix(pathSlice []string) string {
 // packageVersion returns if some version specification exists in import path and it's position
 func packageVersion(pathSlice []string) (bool, int) {
 	for pos, value := range pathSlice {
-		if strings.HasPrefix(value, "v") {
+		r, _ := regexp.Compile("^v[0-9]+$")
+		if r.MatchString(value) {
 			return true, pos
 		}
 	}
