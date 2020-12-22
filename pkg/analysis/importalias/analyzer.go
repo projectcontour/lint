@@ -14,7 +14,6 @@
 package importalias
 
 import (
-	"errors"
 	"fmt"
 	"go/ast"
 	"regexp"
