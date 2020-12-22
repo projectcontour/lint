@@ -85,7 +85,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			pass.Report(
 				analysis.Diagnostic{
 					Pos:     node.Pos(),
-					Message: fmt.Sprintf(error.Error()),
+					Message: error.Error(),
 					SuggestedFixes: []analysis.SuggestedFix{
 						{
 							Message: fmt.Sprintf("should replace %q with %q", alias, applicableAlias),
