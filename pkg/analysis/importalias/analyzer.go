@@ -44,10 +44,12 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		if importStmt.Name == nil {
 			return
 		}
+
 		alias := importStmt.Name.Name
 		if alias == "" {
 			return
 		}
+
 		aliasSlice := strings.Split(alias, "_")
 		path := strings.ReplaceAll(importStmt.Path.Value, "\"", "")
 		// replace all separators with `/` for normalization
@@ -60,49 +62,42 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		if !checkVersion(aliasSlice[len(aliasSlice)-1], pathSlice) {
 			applicableAlias := getAliasFix(pathSlice)
 			_, versionIndex := packageVersion(pathSlice)
-			pass.Report(
-				analysis.Diagnostic{
-					Pos:     node.Pos(),
-					Message: fmt.Sprintf("version %q not specified in alias %q for import path %q", pathSlice[versionIndex], alias, path),
-					SuggestedFixes: []analysis.SuggestedFix{
-						{
-							Message: fmt.Sprintf("should replace %q with %q", alias, applicableAlias),
-							TextEdits: []analysis.TextEdit{
-								{
-									Pos:     importStmt.Pos(),
-									End:     importStmt.Name.End(),
-									NewText: []byte(applicableAlias),
-								},
-							},
-						},
-					},
-				},
-			)
+			pass.Report(analysis.Diagnostic{
+				Pos: node.Pos(),
+				Message: fmt.Sprintf("version %q not specified in alias %q for import path %q",
+					pathSlice[versionIndex], alias, path),
+				SuggestedFixes: []analysis.SuggestedFix{{
+					Message: fmt.Sprintf("should replace %q with %q", alias, applicableAlias),
+					TextEdits: []analysis.TextEdit{{
+						Pos:     importStmt.Pos(),
+						End:     importStmt.Name.End(),
+						NewText: []byte(applicableAlias),
+					}},
+				}},
+			})
+
 			return
 		}
-		if error := checkAliasName(aliasSlice, pathSlice, pass); error != nil {
+
+		if err := checkAliasName(aliasSlice, pathSlice, pass); err != nil {
 			applicableAlias := getAliasFix(pathSlice)
-			pass.Report(
-				analysis.Diagnostic{
-					Pos:     node.Pos(),
-					Message: error.Error(),
-					SuggestedFixes: []analysis.SuggestedFix{
-						{
-							Message: fmt.Sprintf("should replace %q with %q", alias, applicableAlias),
-							TextEdits: []analysis.TextEdit{
-								{
-									Pos:     importStmt.Pos(),
-									End:     importStmt.Name.End(),
-									NewText: []byte(applicableAlias),
-								},
-							},
-						},
-					},
-				},
-			)
+			pass.Report(analysis.Diagnostic{
+				Pos:     node.Pos(),
+				Message: err.Error(),
+				SuggestedFixes: []analysis.SuggestedFix{{
+					Message: fmt.Sprintf("should replace %q with %q", alias, applicableAlias),
+					TextEdits: []analysis.TextEdit{{
+						Pos:     importStmt.Pos(),
+						End:     importStmt.Name.End(),
+						NewText: []byte(applicableAlias),
+					}},
+				}},
+			})
+
 			return
 		}
 	})
+
 	return nil, nil
 }
 
@@ -112,13 +107,14 @@ func checkVersion(aliasLastWord string, pathSlice []string) bool {
 	if !versionExists {
 		return true
 	}
-	return aliasLastWord == pathSlice[versionPos]
 
+	return aliasLastWord == pathSlice[versionPos]
 }
 
 // checkAliasName check consistency in alias name
 func checkAliasName(aliasSlice []string, pathSlice []string, pass *analysis.Pass) error {
 	lastUsedWordIndex := -1
+
 	for _, name := range aliasSlice {
 		// we don't check version rule here
 		if strings.HasPrefix(name, "v") || name == "" {
@@ -146,15 +142,18 @@ func checkAliasName(aliasSlice []string, pathSlice []string, pass *analysis.Pass
 
 func getAliasFix(pathSlice []string) string {
 	versionExists, versionPos := packageVersion(pathSlice)
+
 	if !versionExists {
 		return pathSlice[len(pathSlice)-1]
 	}
+
 	if versionPos == len(pathSlice)-1 {
 		applicableAlias := pathSlice[len(pathSlice)-2] + "_" + pathSlice[versionPos]
 		return applicableAlias
 	}
 
 	applicableAlias := pathSlice[len(pathSlice)-1] + "_" + pathSlice[versionPos]
+
 	return applicableAlias
 }
 
@@ -166,6 +165,7 @@ func packageVersion(pathSlice []string) (bool, int) {
 			return true, pos
 		}
 	}
+
 	return false, 0
 }
 
@@ -176,5 +176,6 @@ func searchString(slice []string, word string) int {
 			return pos
 		}
 	}
+
 	return len(slice)
 }
