@@ -8,6 +8,11 @@ $ go build -o contour-lint .
 $ go vet -vetttool $(which contour-lint) ./...
 ```
 
+To run linter and apply suggested fixes:
+```bash
+contour-lint ./...
+```
+
 ## linters
 
 ### importalias
