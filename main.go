@@ -16,11 +16,11 @@ package main
 import (
 	"github.com/projectcontour/lint/pkg/analysis/importalias"
 	"github.com/projectcontour/lint/pkg/analysis/messagefmt"
-	"golang.org/x/tools/go/analysis/unitchecker"
+	"golang.org/x/tools/go/analysis/multichecker"
 )
 
 func main() {
-	unitchecker.Main(
+	multichecker.Main(
 		messagefmt.Analyzer,
 		importalias.Analyzer,
 	)
