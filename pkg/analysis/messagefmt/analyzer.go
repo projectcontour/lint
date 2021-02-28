@@ -36,8 +36,8 @@ var Analyzer = &analysis.Analyzer{
 
 func isException(word string) bool {
 	var exceptions = map[string]struct{}{
-		"xDS":  struct{}{},
-		"gRPC": struct{}{},
+		"xDS":  {},
+		"gRPC": {},
 	}
 
 	_, ok := exceptions[word]
@@ -66,7 +66,7 @@ func funcForCallExpr(pass *analysis.Pass, call *ast.CallExpr) (*types.Func, bool
 func isFromPkg(fun *types.Func, pkg string) bool {
 	// Calls to builtin types might not have a package.
 	if fun.Pkg() != nil {
-		return fun.Pkg().Path() == pkg
+		return strings.Contains(fun.Pkg().Path(), pkg)
 	}
 
 	return false
@@ -128,7 +128,7 @@ func checkInitialLower(pass *analysis.Pass, lit *ast.BasicLit) {
 
 	// If the first word is all uppercase, it's an
 	// initialism, so don't flag it.
-	if first == strings.ToUpper(first) {
+	if first == strings.ToUpper(first) && len(first) > 1 {
 		return
 	}
 
