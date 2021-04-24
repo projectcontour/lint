@@ -14,6 +14,7 @@
 package messagefmt
 
 import (
+	"fmt"
 	"go/ast"
 	"go/token"
 	"go/types"
@@ -122,8 +123,8 @@ func checkInitialLower(pass *analysis.Pass, lit *ast.BasicLit) {
 	if lit == nil {
 		return
 	}
-
-	words := strings.Fields(strings.Trim(lit.Value, "\"`"))
+	value := strings.Trim(lit.Value, "\"`")
+	words := strings.Fields(value)
 	first := words[0]
 
 	// If the first word is all uppercase, it's an
@@ -137,7 +138,21 @@ func checkInitialLower(pass *analysis.Pass, lit *ast.BasicLit) {
 	// `lit.Value` will be the string literal quote.
 	firstRune, _ := utf8.DecodeRuneInString(first)
 	if unicode.IsUpper(firstRune) && !isException(first) {
-		pass.Reportf(lit.Pos(), "message starts with uppercase: %s", lit.Value)
+		validMessage := []rune(value)
+		validMessage[0] = unicode.ToLower(validMessage[0])
+		fix := string(validMessage)
+		pass.Report(analysis.Diagnostic{
+			Pos:     lit.Pos(),
+			Message: fmt.Sprintf("message starts with uppercase: %s", lit.Value),
+			SuggestedFixes: []analysis.SuggestedFix{{
+				Message: fmt.Sprintf("message starts with uppercase: %s", lit.Value),
+				TextEdits: []analysis.TextEdit{{
+					Pos:     lit.Pos()+1,
+					End:     lit.End()-1,
+					NewText: []byte(fix),
+				}},
+			}},
+		})
 	}
 }
 
@@ -146,7 +161,8 @@ func checkInitialUpper(pass *analysis.Pass, lit *ast.BasicLit) {
 		return
 	}
 
-	words := strings.Fields(strings.Trim(lit.Value, "\"`"))
+	value := strings.Trim(lit.Value, "\"`")
+	words := strings.Fields(value)
 	first := words[0]
 
 	// If the first word is all uppercase, it's an
@@ -160,7 +176,21 @@ func checkInitialUpper(pass *analysis.Pass, lit *ast.BasicLit) {
 	// `lit.Value` will be the string literal quote.
 	firstRune, _ := utf8.DecodeRuneInString(first)
 	if unicode.IsLower(firstRune) && !isException(first) {
-		pass.Reportf(lit.Pos(), "message starts with lowercase: %s", lit.Value)
+		validMessage := []rune(value)
+		validMessage[0] = unicode.ToUpper(validMessage[0])
+		fix := string(validMessage)
+		pass.Report(analysis.Diagnostic{
+			Pos:     lit.Pos(),
+			Message: fmt.Sprintf("message starts with lowercase: %s", lit.Value),
+			SuggestedFixes: []analysis.SuggestedFix{{
+				Message: fmt.Sprintf("message starts with lowercase: %s", lit.Value),
+				TextEdits: []analysis.TextEdit{{
+					Pos:     lit.Pos()+1,
+					End:     lit.End()-1,
+					NewText: []byte(fix),
+				}},
+			}},
+		})
 	}
 }
 
@@ -172,7 +202,18 @@ func checkEndsWithoutPeriod(pass *analysis.Pass, lit *ast.BasicLit) {
 	value := strings.Trim(lit.Value, "\"`")
 
 	if len(value) > 0 && value[len(value)-1] == '.' {
-		pass.Reportf(lit.Pos(), "message must not end with a period: %s", lit.Value)
+		pass.Report(analysis.Diagnostic{
+			Pos:     lit.Pos(),
+			Message: fmt.Sprintf("message must not end with a period: %s", lit.Value),
+			SuggestedFixes: []analysis.SuggestedFix{{
+				Message: fmt.Sprintf("message must not end with a period: %s", lit.Value),
+				TextEdits: []analysis.TextEdit{{
+					Pos:     lit.Pos()+1,
+					End:     lit.End()-1,
+					NewText: []byte(value[:len(value)-1]),
+				}},
+			}},
+		})
 	}
 }
 
@@ -183,8 +224,19 @@ func checkEndsWithPeriod(pass *analysis.Pass, lit *ast.BasicLit) {
 
 	value := strings.Trim(lit.Value, "\"`")
 
-	if len(value) == 0 || value[len(value)-1] != '.' {
-		pass.Reportf(lit.Pos(), "message must end with a period: %s", lit.Value)
+	if len(value) > 0 && value[len(value)-1] != '.' {
+		pass.Report(analysis.Diagnostic{
+			Pos:     lit.Pos(),
+			Message: fmt.Sprintf("message must end with a period: %s", lit.Value),
+			SuggestedFixes: []analysis.SuggestedFix{{
+				Message: fmt.Sprintf("message must end with a period: %s", lit.Value),
+				TextEdits: []analysis.TextEdit{{
+					Pos:     lit.Pos()+1,
+					End:     lit.End()-1,
+					NewText: []byte(value + "."),
+				}},
+			}},
+		})
 	}
 }
 
