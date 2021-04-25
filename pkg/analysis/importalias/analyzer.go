@@ -16,7 +16,10 @@ package importalias
 import (
 	"fmt"
 	"go/ast"
+	"go/types"
+
 	"regexp"
+	"strconv"
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
@@ -50,12 +53,16 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			return
 		}
 
+		if strings.HasPrefix(alias, "_") {
+			return // Used by go test and for auto-includes, not a conflict.
+		}
+
 		aliasSlice := strings.Split(alias, "_")
-		path := strings.ReplaceAll(importStmt.Path.Value, "\"", "")
+
+		originalImportPath, _ := strconv.Unquote(importStmt.Path.Value)
 		// replace all separators with `/` for normalization
-		path = strings.ReplaceAll(path, "_", "/")
-		path = strings.ReplaceAll(path, ".", "/")
-		path = strings.ReplaceAll(path, "-", "")
+		replacer := strings.NewReplacer("_", "/", ".", "/", "-", "")
+		path := replacer.Replace(originalImportPath)
 		// omit the domain name in path
 		pathSlice := strings.Split(path, "/")[1:]
 
@@ -64,15 +71,11 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			_, versionIndex := packageVersion(pathSlice)
 			pass.Report(analysis.Diagnostic{
 				Pos: node.Pos(),
-				Message: fmt.Sprintf("version %q not specified in alias %q for import path %q",
-					pathSlice[versionIndex], alias, path),
+				Message: fmt.Sprintf("version %q not specified in alias %q for import path %q may replace %q with %q",
+					pathSlice[versionIndex], alias, path, alias, applicableAlias),
 				SuggestedFixes: []analysis.SuggestedFix{{
-					Message: fmt.Sprintf("should replace %q with %q", alias, applicableAlias),
-					TextEdits: []analysis.TextEdit{{
-						Pos:     importStmt.Pos(),
-						End:     importStmt.Name.End(),
-						NewText: []byte(applicableAlias),
-					}},
+					Message:   fmt.Sprintf("may replace %q with %q", alias, applicableAlias),
+					TextEdits: findEdits(node, pass.TypesInfo.Uses, originalImportPath, alias, applicableAlias),
 				}},
 			})
 
@@ -83,14 +86,10 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			applicableAlias := getAliasFix(pathSlice)
 			pass.Report(analysis.Diagnostic{
 				Pos:     node.Pos(),
-				Message: err.Error(),
+				Message: fmt.Sprintf("%q may replace %q with %q", err.Error(), alias, applicableAlias),
 				SuggestedFixes: []analysis.SuggestedFix{{
-					Message: fmt.Sprintf("should replace %q with %q", alias, applicableAlias),
-					TextEdits: []analysis.TextEdit{{
-						Pos:     importStmt.Pos(),
-						End:     importStmt.Name.End(),
-						NewText: []byte(applicableAlias),
-					}},
+					Message:   fmt.Sprintf("may replace %q with %q", alias, applicableAlias),
+					TextEdits: findEdits(node, pass.TypesInfo.Uses, originalImportPath, alias, applicableAlias),
 				}},
 			})
 
@@ -171,11 +170,42 @@ func packageVersion(pathSlice []string) (bool, int) {
 
 func searchString(slice []string, word string) int {
 	for pos, value := range slice {
-		r, _ := regexp.Compile(word + "(s)?")
+		r, _ := regexp.Compile("^" + word + "(s)?$")
 		if r.MatchString(value) {
 			return pos
 		}
 	}
 
 	return len(slice)
+}
+
+func findEdits(node ast.Node, uses map[*ast.Ident]types.Object, importPath, original, required string) []analysis.TextEdit {
+	// Edit the actual import line.
+	result := []analysis.TextEdit{{
+		Pos:     node.Pos(),
+		End:     node.End(),
+		NewText: []byte(required + " " + strconv.Quote(importPath)),
+	}}
+
+	// Edit all the uses of the alias in the code.
+	for use, pkg := range uses {
+		pkgName, ok := pkg.(*types.PkgName)
+		if !ok {
+			// skip identifiers that aren't pointing at a PkgName.
+			continue
+		}
+
+		if pkgName.Pos() != node.Pos() {
+			// skip identifiers pointing to a different import statement.
+			continue
+		}
+		if original == pkgName.Name() {
+			result = append(result, analysis.TextEdit{
+				Pos:     use.Pos(),
+				End:     use.End(),
+				NewText: []byte(required),
+			})
+		}
+	}
+	return result
 }
